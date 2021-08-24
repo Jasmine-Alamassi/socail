@@ -311,6 +311,8 @@ class PostController extends Controller
         return response()->json($data);
     }
 
+    /*------------------function deleteComment() ---------------------*/
+
     public function deleteComment($comment_id): JsonResponse
     {
 
@@ -354,6 +356,8 @@ class PostController extends Controller
         return response()->json($data);
     }
 
+    /*------------------function showComment() show post comment ---------------------*/
+
     public function showComment($post_id): JsonResponse
     {
         $post = Posts::find($post_id);
@@ -383,7 +387,7 @@ class PostController extends Controller
 
     }
 
-    /*------------------function timeLine() show user and his friends posts===========================*/
+    /*------------------function timeLine() show user and his friends posts---------------------*/
 
     public function timeLine(): JsonResponse
     {
@@ -409,14 +413,53 @@ class PostController extends Controller
             'statusCode'=>200,
             'message'=>'Success!',
             'items'=>[
-                'data'=>$posts,
-                'total_records'=>$total_records,
-                'current_page_num'=>intval($current_page_num),
-                'total_pages'=>$total_pages,
+                'data'=> $posts,
+                'total_records'=> $total_records,
+                'current_page_num'=> intval($current_page_num),
+                'total_pages'=> $total_pages,
             ],
         ];
 
         return response()->json($data);
     }
+
+    /*------------------function homePage() show user and his posts---------------------*/
+
+    public function homePage($user_id = null): JsonResponse
+    {
+        if (isset($user_id)) {
+            $user = User::find($user_id);
+        } else
+            $user = auth()->user();
+
+        $my_post_ids = Posts::where('user_id',$user->id)->pluck('id')->toArray();
+
+        $page_record = \request()->get('page_record') ?? 10;
+        $current_page_num = \request()->get('current_page_num') ?? 1;
+
+        $posts_id = array_unique($my_post_ids);
+
+        $objects = Posts::whereIn('id',$posts_id);
+
+        $total_records = $objects->count();
+        $total_pages = ceil($total_records/$page_record);
+        $posts = $objects->skip($page_record*($current_page_num-1))->take($page_record)->get();
+
+        $data = [
+            'status'=>true,
+            'statusCode'=>200,
+            'message'=>'Success!',
+            'items'=>[
+                'user'=> $user,
+                'data'=> $posts,
+                'total_records'=> $total_records,
+                'current_page_num'=> intval($current_page_num),
+                'total_pages'=> $total_pages,
+            ],
+        ];
+
+        return response()->json($data);
+    }
+
 
 }

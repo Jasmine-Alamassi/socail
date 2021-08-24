@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController ;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\SocialController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -18,22 +19,39 @@ Route::post('register',[UserController::class,'Register']);
 Route::post('login',[UserController::class,'login']);
 
 
+
 Route::group(['middleware'=>'auth:api'],function (){
-    Route::post('/putUser',[UserController::class,'update']);
+
+    Route::put('/forgetPassword',[UserController::class,'forgetPassword']);
+
+    Route::post('/editUser',[UserController::class,'editUser']);
+    Route::get('/getUser/{id?}',[UserController::class,'getUser']);
+
     Route::post('/createPost',[PostController::class,'create']);
-    Route::post('/addFriend',[UserController::class,'addFriend']);
-    Route::get('/friendlist',[UserController::class,'friendlist']);
-    Route::delete('/deletePost/{posts}',[PostController::class,'deletePost']);
     Route::put('/editPost/{posts}',[PostController::class,'editPost']);
     Route::get('/showPost/{posts}',[PostController::class,'show']);
+    Route::delete('/deletePost/{posts}',[PostController::class,'deletePost']);
     Route::post('/favourite',[PostController::class,'favourite']);
+
+    Route::post('/addFriend',[UserController::class,'addFriend']);
+    Route::get('/friendlist',[UserController::class,'friendlist']);
+
+
     Route::post('/like',[PostController::class,'like']);
+
     Route::post('/comment',[PostController::class,'comment']);
     Route::put('/editComment/{comments}',[PostController::class,'editComment']);
     Route::delete('/deleteComment/{comments}',[PostController::class,'deleteComment']);
     Route::get('/showComment/{posts}',[PostController::class,'showComment']);
-    Route::get('/timeLine',[PostController::class,'timeLine']);
 
+    Route::get('/timeLine',[PostController::class,'timeLine']);
+    Route::get('/homePage/{id?}',[PostController::class,'homePage']);
+
+    Route::get('auth/facebook', [SocialController::class, 'facebookRedirect']);
+
+    Route::get('auth/facebook/callback', [SocialController::class, 'loginWithFacebook']);
+
+    Route::post('logout',[UserController::class,'logout']);
 });
 
 

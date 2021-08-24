@@ -9,10 +9,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Password;
 use App\Models\Friends;
-
+//use Illuminate\Validation\Validator;
+use Illuminate\Support\Facades\Validator;
+use \Illuminate\Http\JsonResponse;
 class UserController extends Controller
 {
-    public function register(Request $request){
+    public function register(Request $request): JsonResponse
+    {
         $validateData = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
@@ -40,7 +43,7 @@ class UserController extends Controller
     }
 
 
-    public function login(Request $request)
+    public function login(Request $request): JsonResponse
     {
 
         $proxy = Request::create(
@@ -72,7 +75,7 @@ class UserController extends Controller
         return response()->json(['status' => true, 'statusCode' => 200, 'message' => 'Success', 'items' => $data]);
     }
 
-    public function refreshToken(Request $request)
+    public function refreshToken(Request $request): JsonResponse
     {
 
         $proxy = Request::create(
@@ -85,27 +88,50 @@ class UserController extends Controller
         $response = json_decode($response->getContent());
 
 
-        return response()->json(['status' => true, 'statusCode' => 200, 'message' => 'Success', 'items' => $response]);
+        return response()->json([
+            'status' => true,
+            'statusCode' => 200,
+            'message' => 'Success',
+            'items' => $response]);
     }
 
-    public function getUser($user_id = null)
+    public function forgetPassword(Request $request): JsonResponse
     {
-        if (isset($user_id)) {
-            $user = User::find($user_id);
-        } else
-            $user = auth()->user();
+        $input = $request->only('email');
+        $validator = Validator::make($input, [
+            'email' => "required|email"
+        ]);
+        if ($validator->fails()) {
+            return response()->json($validator->errors());
+        }
+        $response = Password::sendResetLink($input);
 
-        return response()->json(['status' => true, 'statusCode' => 200, 'message' => 'Success', 'items' => $user]);
+        $message = $response == Password::RESET_LINK_SENT ? 'Mail send successfully' : 'SOMETHING_WRONG';
+        if ($message== 'SOMETHING_WRONG'){
+            $data = [
+                'status' => false,
+                'statusCode' => 400,
+                'message' => $message,
+                'items' => '',
 
+            ];
+        }
+        if ($message== 'Mail send successfully'){
+            $data = [
+                'status' => true,
+                'statusCode' => 200,
+                'message' => $message,
+                'items' => '',
+
+            ];
+        }
+
+
+        return response()->json($data);
     }
-    public function forgotPassword(Request $request): \Illuminate\Http\JsonResponse
-    {
-        $credentials = $request->validate(['email' => 'required|email']);
 
-        Password::sendResetLink($credentials);
 
-        return response()->json(["message" => 'If an account with the corresponding e-mail exists a password reset link will be send to the provided address.'], 200);
-    }
+
 
     public function reset(ResetPasswordRequest $request) {
         $reset_password_status = Password::reset($request->validated(), function ($user, $password) {
@@ -120,11 +146,37 @@ class UserController extends Controller
         return $this->respondWithMessage("Password has been successfully changed");
     }
 
-    public function update(Request $request)
+    /*  public function forgotPassword(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $credentials = $request->validate(['email' => 'required|email']);
+
+        Password::sendResetLink($credentials);
+
+        return response()->json(["message" => 'If an account with the corresponding e-mail exists a password reset link will be send to the provided address.'], 200);
+    }*/
+
+
+    public function getUser($user_id = null): JsonResponse
+    {
+        if (isset($user_id)) {
+            $user = User::find($user_id);
+        } else
+            $user = auth()->user();
+
+        $data=[
+            'status' => true,
+            'statusCode' => 200,
+            'message' => 'Success',
+            'items' => $user
+        ];
+return response()->json($data);
+    }
+
+
+
+    public function editUser(Request $request): JsonResponse
     {
         $user = Auth::user();
-        //$user = User::find($id);
-
         $user->name = $request->name;
         $user->email = $request->email;
         $user->password = bcrypt($request->input('password'));
@@ -139,12 +191,30 @@ class UserController extends Controller
         return response()->json($data);
     }
 
-    public function addFriend(Request $request){
-        $requestData['friend_id']=$request->friend_id;
-        $requestData['user_id']=Auth::user()->id;
+    public function addFriend(Request $request): JsonResponse
+    {
 
-        $friend= Friends::create($requestData);
+        $myFriend_ids = friends::where('user_id',\auth()->user()->id)->pluck('friend_id')->toArray();
+        $id=$request->input('friend_id');
+        if(in_array($id,$myFriend_ids)){
 
+            $data = [
+                'status' => true,
+                'statusCode' => 200,
+                'message' => 'Error',
+                'item'=>  'friend is exists',
+
+            ];
+
+            return response()->json($data);
+        }
+
+
+        $friend= Friends::create([
+            'friend_id'=>$request->input('friend_id'),
+            'user_id'=>Auth::user()->id,
+
+        ]);
 
         $data = [
             'status' => true,
@@ -156,16 +226,29 @@ class UserController extends Controller
 
         return response()->json($data);
     }
-    public function friendlist()
+
+
+    public function friendlist(): JsonResponse
     {
-        $user_id =  Auth::user()->id;
-        $friends=Friends::where('user_id',"like","$user_id")->get();
+
+        $friends=Friends::where('user_id',\Auth::user()->id)->get();
         $data = [
             'status' => true,
             'statusCode' => 200,
             'message' => 'Success',
             'items' => $friends,
 
+        ];
+        return response()->json($data);
+    }
+    public function logout(Request $request): JsonResponse
+    {
+        $request->user()->token()->revoke();
+        $data = [
+            'status' => true,
+            'statusCode' => 200,
+            'message' => 'Success',
+            'items' => 'Successfully logged out',
         ];
         return response()->json($data);
     }
